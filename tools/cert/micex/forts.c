@@ -1,5 +1,4 @@
-#include "libtrading/proto/fix_message.h"
-#include "libtrading/proto/fix_session.h"
+#include "fix/fix_common.h"
 #include "libtrading/proto/fast_book.h"
 
 #include "libtrading/compat.h"
@@ -482,8 +481,7 @@ static int do_logic(struct fix_session_cfg *cfg, const char *config, const char 
 		if (fix_session_time_update(session))
 			break;
 
-		msg = fix_session_recv(session, 0);
-		if (msg) {
+		if (fix_session_recv(session, &msg, 0) > 0) {
 			if (fix_session_admin(session, msg))
 				continue;
 
@@ -582,7 +580,6 @@ int main(int argc, char *argv[])
 			break;
 		default: /* '?' */
 			usage();
-			exit(EXIT_FAILURE);
 		}
 	}
 

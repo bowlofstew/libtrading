@@ -1,6 +1,10 @@
 #ifndef LIBTRADING_OMX_ITCH186_MESSAGE_H
 #define LIBTRADING_OMX_ITCH186_MESSAGE_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "libtrading/types.h"
 
 struct buffer;
@@ -29,28 +33,28 @@ enum omx_itch186_msg_type {
 
 struct omx_itch186_message {
 	u8			MessageType;
-} packed;
+} __attribute__((packed));
 
 struct omx_itch186_msg_seconds {
 	u8			MessageType;
 	char			Second[5];
-} packed;
+} __attribute__((packed));
 
 struct omx_itch186_msg_milliseconds {
 	u8			MessageType;
 	char			Millisecond[3];
-} packed;
+} __attribute__((packed));
 
 struct omx_itch186_msg_system_event {
 	u8			MessageType;
 	char			EventCode;
-} packed;
+} __attribute__((packed));
 
 struct omx_itch186_msg_market_segment_state {
 	u8			MessageType;
 	char			MarketSegmentID[3];
 	char			EventCode;
-} packed;
+} __attribute__((packed));
 
 struct omx_itch186_msg_order_book_directory {
 	u8			MessageType;
@@ -63,7 +67,7 @@ struct omx_itch186_msg_order_book_directory {
 	char			MarketSegmentID[3];
 	char			NoteCodes[8];
 	char			RoundLotSize[9];
-} packed;
+} __attribute__((packed));
 
 struct omx_itch186_msg_order_book_trading_action {
 	u8			MessageType;
@@ -71,7 +75,7 @@ struct omx_itch186_msg_order_book_trading_action {
 	char			TradingState;
 	char			Reserved;
 	char			Reason[4];
-} packed;
+} __attribute__((packed));
 
 struct omx_itch186_msg_add_order {
 	u8			MessageType;
@@ -80,7 +84,7 @@ struct omx_itch186_msg_add_order {
 	char			Quantity[9];
 	char			OrderBook[6];
 	char			Price[10];
-} packed;
+} __attribute__((packed));
 
 struct omx_itch186_msg_add_order_mpid {
 	u8			MessageType;
@@ -90,7 +94,7 @@ struct omx_itch186_msg_add_order_mpid {
 	char			OrderBook[6];
 	char			Price[10];
 	char			Attribution[4];
-} packed;
+} __attribute__((packed));
 
 struct omx_itch186_msg_order_executed {
 	u8			MessageType;
@@ -99,7 +103,7 @@ struct omx_itch186_msg_order_executed {
 	char			MatchNumber[9];
 	char			OwnerParticipantID[4];
 	char			CounterpartyParticipantID[4];
-} packed;
+} __attribute__((packed));
 
 struct omx_itch186_msg_order_executed_with_price {
 	u8			MessageType;
@@ -110,18 +114,18 @@ struct omx_itch186_msg_order_executed_with_price {
 	char			TradePrice[10];
 	char			OwnerParticipantID[4];
 	char			CounterpartyParticipantID[4];
-} packed;
+} __attribute__((packed));
 
 struct omx_itch186_msg_order_cancel {
 	u8			MessageType;
 	char			OrderReferenceNumber[9];
 	char			CanceledQuantity[9];
-} packed;
+} __attribute__((packed));
 
 struct omx_itch186_msg_order_delete {
 	u8			MessageType;
 	char			OrderReferenceNumber[9];
-} packed;
+} __attribute__((packed));
 
 struct omx_itch186_msg_trade {
 	u8			MessageType;
@@ -133,7 +137,7 @@ struct omx_itch186_msg_trade {
 	char			TradePrice[10];
 	char			BuyerParticipantID[4];
 	char			SellerParticipantID[4];
-} packed;
+} __attribute__((packed));
 
 struct omx_itch186_msg_cross_trade {
 	u8			MessageType;
@@ -143,12 +147,12 @@ struct omx_itch186_msg_cross_trade {
 	char			MatchNumber[9];
 	char			CrossType;
 	char			NumberOfTrades[10];
-} packed;
+} __attribute__((packed));
 
 struct omx_itch186_msg_broken_trade {
 	u8			MessageType;
 	char			MatchNumber[9];
-} packed;
+} __attribute__((packed));
 
 struct omx_itch186_msg_noii {
 	u8			MessageType;
@@ -162,10 +166,14 @@ struct omx_itch186_msg_noii {
 	char			BestBidQuantity[9];
 	char			BestAskPrice[10];
 	char			BestAskQuantity[9];
-} packed;
+} __attribute__((packed));
 
 unsigned long omx_itch186_message_size(u8 type);
 
 struct omx_itch186_message *omx_itch186_message_decode(struct buffer *buf);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

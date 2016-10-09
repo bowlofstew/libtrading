@@ -1,5 +1,4 @@
-#include "libtrading/proto/fix_message.h"
-#include "libtrading/proto/fix_session.h"
+#include "fix/fix_common.h"
 #include "libtrading/array.h"
 #include "libtrading/die.h"
 #include "market.h"
@@ -61,6 +60,8 @@ static int do_income(struct market *market, int sockfd)
 	struct trader *trader;
 	struct order order;
 
+	fix_session_cfg_init(&cfg);
+
 	trader = trader_by_sock(market, sockfd);
 	if (!trader) {
 		trader = trader_new(market);
@@ -79,8 +80,7 @@ static int do_income(struct market *market, int sockfd)
 			goto fail;
 	}
 
-	recv_msg = fix_session_recv(trader->session, 0);
-	if (!recv_msg)
+	if (fix_session_recv(trader->session, &recv_msg, 0) <= 0)
 		goto done;
 
 	send_msg.nr_fields = 0;
@@ -194,7 +194,7 @@ int main(int argc, char *argv[])
 	struct sockaddr_in sa;
 	int sockfd = -1;
 	int port = 0;
-	int ret = -1;
+	int ret = EXIT_FAILURE;
 	int opt;
 
 	program = basename(argv[0]);
@@ -250,7 +250,7 @@ int main(int argc, char *argv[])
 
 	event_base_dispatch(base);
 
-	ret = 0;
+	ret = EXIT_SUCCESS;
 
 exit:
 	close(sockfd);

@@ -1,5 +1,4 @@
-#include "libtrading/proto/fix_message.h"
-#include "libtrading/proto/fix_session.h"
+#include "fix/fix_common.h"
 
 #include "libtrading/compat.h"
 #include "libtrading/array.h"
@@ -146,7 +145,7 @@ static int fix_client_script(struct fix_session_cfg *cfg, struct fix_client_arg 
 
 	while (tosend_elem) {
 		if (tosend_elem->msg.msg_seq_num)
-			fix_session_send(session, &tosend_elem->msg, FIX_FLAG_PRESERVE_MSG_NUM);
+			fix_session_send(session, &tosend_elem->msg, FIX_SEND_FLAG_PRESERVE_MSG_NUM);
 		else
 			fix_session_send(session, &tosend_elem->msg, 0);
 
@@ -154,13 +153,11 @@ static int fix_client_script(struct fix_session_cfg *cfg, struct fix_client_arg 
 			goto next;
 
 retry:
-		msg = fix_session_recv(session, MSG_DONTWAIT);
-
-		if (!msg)
+		if (fix_session_recv(session, &msg, FIX_RECV_FLAG_MSG_DONTWAIT) <= 0)
 			goto retry;
 
 		fprintf(stdout, "< ");
-		fprintmsg(stdout, msg);
+		fprintmsg_iov(stdout, msg);
 
 		if (fmsgcmp(&expected_elem->msg, msg)) {
 			fprintf(stderr, "Client: messages differ\n");
@@ -243,8 +240,7 @@ static int fix_client_session(struct fix_session_cfg *cfg, struct fix_client_arg
 			break;
 		}
 
-		msg = fix_session_recv(session, MSG_DONTWAIT);
-		if (msg) {
+		if (fix_session_recv(session, &msg, FIX_RECV_FLAG_MSG_DONTWAIT) <= 0) {
 			fprintmsg(stdout, msg);
 
 			if (fix_session_admin(session, msg))
@@ -346,6 +342,17 @@ static int fix_client_order(struct fix_session_cfg *cfg, struct fix_client_arg *
 	max_usec	= 0;
 	total_usec	= 0;
 
+	for (i = 0; i < arg->warmup_orders; i++) {
+		fix_session_new_order_single(session, fields, nr);
+
+retry_warmup:
+		if (fix_session_recv(session, &msg, MSG_DONTWAIT) <= 0)
+			goto retry_warmup;
+
+		if (!fix_message_type_is(msg, FIX_MSG_TYPE_EXECUTION_REPORT))
+			goto retry_warmup;
+	}
+
 	for (i = 0; i < orders; i++) {
 		struct timespec before, after;
 		uint64_t elapsed_usec;
@@ -355,8 +362,7 @@ static int fix_client_order(struct fix_session_cfg *cfg, struct fix_client_arg *
 		fix_session_new_order_single(session, fields, nr);
 
 retry:
-		msg = fix_session_recv(session, MSG_DONTWAIT);
-		if (!msg)
+		if (fix_session_recv(session, &msg, FIX_RECV_FLAG_MSG_DONTWAIT) <= 0)
 			goto retry;
 
 		if (!fix_message_type_is(msg, FIX_MSG_TYPE_EXECUTION_REPORT))
@@ -402,7 +408,7 @@ exit:
 
 static void usage(void)
 {
-	printf("\n usage: %s [-m mode] [-d dialect] [-f filename] [-n orders] [-s sender-comp-id] [-t target-comp-id] [-r password] -h hostname -p port\n\n", program);
+	printf("\n usage: %s [-m mode] [-d dialect] [-f filename] [-n orders] [-s sender-comp-id] [-t target-comp-id] [-r password] [-w warmup orders] -h hostname -p port\n\n", program);
 
 	exit(EXIT_FAILURE);
 }
@@ -470,7 +476,7 @@ int main(int argc, char *argv[])
 
 	program = basename(argv[0]);
 
-	while ((opt = getopt(argc, argv, "f:h:p:d:s:t:m:n:o:r:")) != -1) {
+	while ((opt = getopt(argc, argv, "f:h:p:d:s:t:m:n:o:r:w:")) != -1) {
 		switch (opt) {
 		case 'd':
 			version = strversion(optarg);
@@ -502,14 +508,18 @@ int main(int argc, char *argv[])
 		case 'h':
 			host = optarg;
 			break;
+		case 'w':
+			arg.warmup_orders = atoi(optarg);
+			break;
 		default: /* '?' */
 			usage();
-			exit(EXIT_FAILURE);
 		}
 	}
 
 	if (!port || !host)
 		usage();
+
+	fix_session_cfg_init(&cfg);
 
 	cfg.dialect	= &fix_dialects[version];
 
@@ -563,6 +573,8 @@ int main(int argc, char *argv[])
 	if (socket_setopt(cfg.sockfd, IPPROTO_TCP, TCP_NODELAY, 1) < 0)
 		die("cannot set socket option TCP_NODELAY");
 
+	cfg.heartbtint = 15;
+
 	switch (mode) {
 	case FIX_CLIENT_SCRIPT:
 		ret = fix_client_functions[mode].fix_session_initiate(&cfg, &arg);
@@ -571,7 +583,6 @@ int main(int argc, char *argv[])
 		ret = fix_client_functions[mode].fix_session_initiate(&cfg, &arg);
 		break;
 	case FIX_CLIENT_SESSION:
-		cfg.heartbtint = 15;
 		ret = fix_client_functions[mode].fix_session_initiate(&cfg, NULL);
 		break;
 	default:

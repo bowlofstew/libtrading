@@ -1,6 +1,10 @@
 #ifndef LIBTRADING_SOUPBIN3_SESSION_H
 #define LIBTRADING_SOUPBIN3_SESSION_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "libtrading/types.h"
 
 struct buffer;
@@ -35,7 +39,7 @@ struct soupbin3_packet_debug {
 	be16			PacketLength;
 	char			PacketType;
 	char			Text[];
-} packed;
+} __attribute__((packed));
 
 /* SOUPBIN_PACKET_LOGIN_ACCEPTED */
 struct soupbin3_packet_login_accepted {
@@ -43,33 +47,33 @@ struct soupbin3_packet_login_accepted {
 	char			PacketType;
 	char			Session[10];
 	char			SequenceNumber[20];
-} packed;
+} __attribute__((packed));
 
 /* SOUPBIN_PACKET_LOGIN_REJECTED */
 struct soupbin3_packet_login_rejected {
 	be16			PacketLength;
 	char			PacketType;
 	char			RejectReasonCode;
-} packed;
+} __attribute__((packed));
 
 /* SOUPBIN_PACKET_SEQ_DATA */
 struct soupbin3_packet_seq_data {
 	be16			PacketLength;
 	char			PacketType;
 	char			Message[];
-} packed;
+} __attribute__((packed));
 
 /* SOUPBIN_PACKET_SERVER_HEARTBEAT */
 struct soupbin3_packet_server_heartbeat {
 	be16			PacketLength;
 	char			PacketType;
-} packed;
+} __attribute__((packed));
 
 /* SOUPBIN_PACKET_END_OF_SESSION */
 struct soupbin3_packet_end_of_session {
 	be16			PacketLength;
 	char			PacketType;
-} packed;
+} __attribute__((packed));
 
 /* SOUPBIN_PACKET_LOGIN_REQUEST */
 struct soupbin3_packet_login_request {
@@ -79,26 +83,26 @@ struct soupbin3_packet_login_request {
 	char			Password[10];
 	char			RequestedSession[10];
 	char			RequestedSequenceNumber[20];
-} packed;
+} __attribute__((packed));
 
 /* SOUPBIN_PACKET_UNSEQ_DATA */
 struct soupbin3_packet_unseq_data {
 	be16			PacketLength;
 	char			PacketType;
 	char			Message[];
-} packed;
+} __attribute__((packed));
 
 /* SOUPBIN_PACKET_CLIENT_HEARTBEAT */
 struct soupbin3_packet_client_heartbeat {
 	be16			PacketLength;
 	char			PacketType;
-} packed;
+} __attribute__((packed));
 
 /* SOUPBIN_PACKET_LOGOUT_REQUEST */
 struct soupbin3_packet_logout_request {
 	be16			PacketLength;
 	char			PacketType;
-} packed;
+} __attribute__((packed));
 
 struct soupbin3_session {
 	int				sockfd;
@@ -108,5 +112,9 @@ struct soupbin3_session {
 struct soupbin3_session *soupbin3_session_new(int sockfd);
 void soupbin3_session_delete(struct soupbin3_session *session);
 int soupbin3_session_recv(struct soupbin3_session *session, struct soupbin3_packet *packet);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -1,6 +1,10 @@
 #ifndef LIBTRADING_OUCH42_MESSAGE_H
 #define LIBTRADING_OUCH42_MESSAGE_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "libtrading/types.h"
 
 struct buffer;
@@ -29,7 +33,7 @@ enum ouch42_msg_type {
 
 struct ouch42_message {
 	char			MessageType;
-} packed;
+} __attribute__((packed));
 
 struct ouch42_msg_enter_order {
 	char			MessageType;
@@ -45,7 +49,7 @@ struct ouch42_msg_enter_order {
 	char			IntermarketSweepEligibility;
 	u32			MinimumQuantity;
 	char			CrossType;
-} packed;
+} __attribute__((packed));
 
 struct ouch42_msg_replace_order {
 	u8			MessageType;
@@ -57,26 +61,26 @@ struct ouch42_msg_replace_order {
 	char			Display;
 	char			IntermarketSweepEligibility;
 	u32			MinimumQuantity;
-} packed;
+} __attribute__((packed));
 
 struct ouch42_msg_cancel_order {
 	u8			MessageType;
 	char			OrderToken[14];
 	u32			Shares;
-} packed;
+} __attribute__((packed));
 
 struct ouch42_msg_modify_order {
 	u8			MessageType;
 	char			OrderToken[14];
 	char			BuySellIndicator;
 	u32			Shares;
-} packed;
+} __attribute__((packed));
 
 struct ouch42_msg_system_event {
 	u8			MessageType;
 	u64			Timestamp;
 	char			EventCode;
-} packed;
+} __attribute__((packed));
 
 struct ouch42_msg_accepted {
 	u8			MessageType;
@@ -96,7 +100,7 @@ struct ouch42_msg_accepted {
 	char			CrossType;
 	char			OrderState;
 	char			BBOWeightIndicator;
-} packed;
+} __attribute__((packed));
 
 struct ouch42_msg_replaced {
 	u8			MessageType;
@@ -117,7 +121,7 @@ struct ouch42_msg_replaced {
 	char			OrderState;
 	char			PreviousOrderToken[14];
 	char			BBOWeightIndicator;
-} packed;
+} __attribute__((packed));
 
 struct ouch42_msg_canceled {
 	u8			MessageType;
@@ -125,7 +129,7 @@ struct ouch42_msg_canceled {
 	char			OrderToken[14];
 	u32			DecrementShares;
 	char			Reason;
-} packed;
+} __attribute__((packed));
 
 struct ouch42_msg_aiq_canceled {
 	u8			MessageType;
@@ -136,7 +140,7 @@ struct ouch42_msg_aiq_canceled {
 	u32			QuantityPreventedFromTrading;
 	u32			ExecutionPrice;
 	char			LiquidityFlag;
-} packed;
+} __attribute__((packed));
 
 struct ouch42_msg_executed {
 	u8			MessageType;
@@ -146,7 +150,7 @@ struct ouch42_msg_executed {
 	u32			ExecutionPrice;
 	char			LiquidityFlag;
 	u64			MatchNumber;
-} packed;
+} __attribute__((packed));
 
 struct ouch42_msg_broken_trade {
 	u8			MessageType;
@@ -154,26 +158,26 @@ struct ouch42_msg_broken_trade {
 	char			OrderToken[14];
 	u64			MatchNumber;
 	char			Reason;
-} packed;
+} __attribute__((packed));
 
 struct ouch42_msg_rejected {
 	u8			MessageType;
 	u64			Timestamp;
 	char			OrderToken[14];
 	char			Reason;
-} packed;
+} __attribute__((packed));
 
 struct ouch42_msg_cancel_pending {
 	u8			MessageType;
 	u64			Timestamp;
 	char			OrderToken[14];
-} packed;
+} __attribute__((packed));
 
 struct ouch42_msg_cancel_reject {
 	u8			MessageType;
 	u64			Timestamp;
 	char			OrderToken[14];
-} packed;
+} __attribute__((packed));
 
 struct ouch42_msg_order_prio_update {
 	u8			MessageType;
@@ -182,7 +186,7 @@ struct ouch42_msg_order_prio_update {
 	u32			Price;
 	char			Display;
 	u64			OrderReferenceNumber;
-} packed;
+} __attribute__((packed));
 
 struct ouch42_msg_order_modified {
 	u8			MessageType;
@@ -190,9 +194,13 @@ struct ouch42_msg_order_modified {
 	char			OrderToken[14];
 	char			BuySellIndicator;
 	u32			Shares;
-} packed;
+} __attribute__((packed));
 
 int ouch42_in_message_decode(struct buffer *buf, struct ouch42_message *msg);
 int ouch42_out_message_decode(struct buffer *buf, struct ouch42_message *msg);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

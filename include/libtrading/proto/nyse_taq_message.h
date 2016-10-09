@@ -1,6 +1,10 @@
 #ifndef LIBTRADING_NYSE_TAQ_MESSAGE_H
 #define LIBTRADING_NYSE_TAQ_MESSAGE_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "libtrading/types.h"
 
 #include <stddef.h>
@@ -30,7 +34,7 @@ struct nyse_taq_msg_daily_quote {
 	char			LULDBBOIndicatorUTP;
 	char			FINRAADFMPIDIndicator;
 	char			LineChange[2];
-} packed;
+} __attribute__((packed));
 
 struct nyse_taq_msg_daily_trade {
 	char			Time[9];
@@ -45,7 +49,7 @@ struct nyse_taq_msg_daily_trade {
 	char			SourceOfTrade;
 	char			TradeReportingFacility;
 	char			LineChange[2];
-} packed;
+} __attribute__((packed));
 
 struct nyse_taq_msg_daily_nbbo {
 	char			Time[9];
@@ -80,7 +84,7 @@ struct nyse_taq_msg_daily_nbbo {
 	char			LULDNBBOIndicatorCQS;
 	char			LULDNBBOIndicatorUTP;
 	char			LineChange[2];
-} packed;
+} __attribute__((packed));
 
 void *nyse_taq_msg_decode(struct buffer *buf, size_t size);
 
@@ -98,5 +102,9 @@ static inline struct nyse_taq_msg_daily_nbbo *nyse_taq_msg_daily_nbbo_decode(str
 {
 	return nyse_taq_msg_decode(buf, sizeof(struct nyse_taq_msg_daily_nbbo));
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

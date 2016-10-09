@@ -1,5 +1,4 @@
-#include "libtrading/proto/fix_message.h"
-#include "libtrading/proto/fix_session.h"
+#include "fix/fix_common.h"
 
 #include "libtrading/array.h"
 #include "libtrading/die.h"
@@ -134,12 +133,13 @@ int main(int argc, char *argv[])
 			break;
 		default: /* '?' */
 			usage();
-			exit(EXIT_FAILURE);
 		}
 	}
 
 	if (!port || !host)
 		usage();
+
+	fix_session_cfg_init(&cfg);
 
 	strncpy(cfg.target_comp_id, "SELLSIDE", ARRAY_SIZE(cfg.target_comp_id));
 	strncpy(cfg.sender_comp_id, "BUYSIDE", ARRAY_SIZE(cfg.sender_comp_id));

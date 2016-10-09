@@ -7,6 +7,8 @@
 #include "libtrading/trace.h"
 #include "libtrading/itoa.h"
 
+#include "modp_numtoa.h"
+
 #include <sys/socket.h>
 #include <inttypes.h>
 #include <sys/uio.h>
@@ -17,7 +19,7 @@
 #include <errno.h>
 #include <stdio.h>
 
-static const char *fix_msg_types[FIX_MSG_TYPE_MAX] = {
+const char *fix_msg_types[FIX_MSG_TYPE_MAX] = {
 	[FIX_MSG_TYPE_HEARTBEAT]		= "0",
 	[FIX_MSG_TYPE_TEST_REQUEST]		= "1",
 	[FIX_MSG_TYPE_RESEND_REQUEST]		= "2",
@@ -36,12 +38,28 @@ static const char *fix_msg_types[FIX_MSG_TYPE_MAX] = {
 	[FIX_MSG_TYPE_SECURITY_STATUS]		= "f",
 	[FIX_MSG_ORDER_MASS_CANCEL_REQUEST]	= "q",
 	[FIX_MSG_ORDER_MASS_CANCEL_REPORT]	= "r",
+	[FIX_MSG_QUOTE_REQUEST]			= "R",
+	[FIX_MSG_SECURITY_DEFINITION_REQUEST]	= "c",
+	[FIX_MSG_NEW_ORDER_CROSS]		= "s",
+	[FIX_MSG_MASS_QUOTE]			= "i",
+	[FIX_MSG_QUOTE_CANCEL]			= "Z",
+	[FIX_MSG_SECURITY_DEFINITION]		= "d",
+	[FIX_MSG_QUOTE_ACKNOWLEDGEMENT]		= "b",
+	[FIX_MSG_ORDER_MASS_STATUS_REQUEST]	= "AF",
+	[FIX_MSG_ORDER_MASS_ACTION_REQUEST]	= "CA",
+	[FIX_MSG_ORDER_MASS_ACTION_REPORT]	= "BZ",
 };
 
 enum fix_msg_type fix_msg_type_parse(const char *s, const char delim)
 {
-	if (s[1] != delim)
-		return FIX_MSG_TYPE_UNKNOWN;
+	if (s[1] != delim) {
+		if (s[2] != delim)
+			return FIX_MSG_TYPE_UNKNOWN;
+		if (s[0] == 'A' && s[1] == 'F') return FIX_MSG_ORDER_MASS_STATUS_REQUEST;
+		else if (s[0] == 'C' && s[1] == 'A') return FIX_MSG_ORDER_MASS_ACTION_REQUEST;
+		else if (s[0] == 'B' && s[1] == 'Z') return FIX_MSG_ORDER_MASS_ACTION_REPORT;
+		else return FIX_MSG_TYPE_UNKNOWN;
+	}
 
 	/*
 	 * Single-character message type:
@@ -65,13 +83,20 @@ enum fix_msg_type fix_msg_type_parse(const char *s, const char delim)
 	case 'f': return FIX_MSG_TYPE_SECURITY_STATUS;
 	case 'q': return FIX_MSG_ORDER_MASS_CANCEL_REQUEST;
 	case 'r': return FIX_MSG_ORDER_MASS_CANCEL_REPORT;
+	case 'R': return FIX_MSG_QUOTE_REQUEST;
+	case 'c': return FIX_MSG_SECURITY_DEFINITION_REQUEST;
+	case 's': return FIX_MSG_NEW_ORDER_CROSS;
+	case 'i': return FIX_MSG_MASS_QUOTE;
+	case 'Z': return FIX_MSG_QUOTE_CANCEL;
+	case 'd': return FIX_MSG_SECURITY_DEFINITION;
+	case 'b': return FIX_MSG_QUOTE_ACKNOWLEDGEMENT;
 	default : return FIX_MSG_TYPE_UNKNOWN;
 	}
 }
 
-static int fix_atoi(const char *p, const char **end)
+int64_t fix_atoi64(const char *p, const char **end)
 {
-	int ret = 0;
+	int64_t ret = 0;
 	bool neg = false;
 	if (*p == '-') {
 		neg = true;
@@ -90,7 +115,7 @@ static int fix_atoi(const char *p, const char **end)
 	return ret;
 }
 
-static inline int fix_uatoi(const char *p, const char **end)
+inline int fix_uatoi(const char *p, const char **end)
 {
 	int ret = 0;
 	while (*p >= '0' && *p <= '9') {
@@ -237,7 +262,8 @@ static enum fix_type fix_tag_type(int tag)
 	case Symbol:			return FIX_TYPE_STRING;
 	case Side:			return FIX_TYPE_STRING;
 	case Text:			return FIX_TYPE_STRING;
-
+	case OrdRejReason:		return FIX_TYPE_INT;
+	case MultiLegReportingType:	return FIX_TYPE_CHAR;
 	default:			return FIX_TYPE_STRING;	/* unrecognized tag */
 	}
 }
@@ -259,12 +285,13 @@ retry:
 
 	switch (type) {
 	case FIX_TYPE_INT:
-		self->fields[nr_fields++] = FIX_INT_FIELD(tag, fix_atoi(tag_ptr, NULL));
+		self->fields[nr_fields++] = FIX_INT_FIELD(tag, fix_atoi64(tag_ptr, NULL));
 		goto retry;
 	case FIX_TYPE_FLOAT:
 		self->fields[nr_fields++] = FIX_FLOAT_FIELD(tag, strtod(tag_ptr, NULL));
 		goto retry;
 	case FIX_TYPE_CHAR:
+		self->fields[nr_fields++] = FIX_CHAR_FIELD(tag, tag_ptr[0]);
 		goto retry;
 	case FIX_TYPE_STRING:
 		self->fields[nr_fields++] = FIX_STRING_FIELD(tag, tag_ptr);
@@ -283,11 +310,11 @@ retry:
 
 static bool verify_checksum(struct fix_message *self, struct buffer *buffer)
 {
-	u8 cksum, actual;
+	int cksum, actual;
 
 	cksum	= fix_uatoi(self->check_sum, NULL);
 
-	actual	= buffer_sum_range(buffer, self->begin_string - 2, self->check_sum - 3);
+	actual	= buffer_sum_range(self->begin_string - 2, self->check_sum - 3);
 
 	return actual == cksum;
 }
@@ -298,7 +325,7 @@ static bool verify_checksum(struct fix_message *self, struct buffer *buffer)
  * - "CheckSum=" ("10=") is 3 bytes long
  * - "MsgType=" ("35=") is 3 bytes long
  */
-static int checksum(struct fix_message *self, struct buffer *buffer)
+static int checksum(struct fix_message *self, struct buffer *buffer, unsigned long flags)
 {
 	const char *start;
 	int offset;
@@ -315,6 +342,11 @@ static int checksum(struct fix_message *self, struct buffer *buffer)
 	 */
 	if (buffer_size(buffer) + offset < self->body_length + 7) {
 		ret = FIX_MSG_STATE_PARTIAL;
+		goto exit;
+	}
+
+	if (flags & FIX_PARSE_FLAG_NO_CSUM) {
+		ret = 0;
 		goto exit;
 	}
 
@@ -337,7 +369,7 @@ exit:
 	return ret;
 }
 
-static int parse_msg_type(struct fix_message *self)
+static int parse_msg_type(struct fix_message *self, unsigned long flags)
 {
 	int ret;
 
@@ -346,12 +378,14 @@ static int parse_msg_type(struct fix_message *self)
 	if (ret)
 		goto exit;
 
-	self->type = fix_msg_type_parse(self->msg_type, 0x01);
+	if (!(flags & FIX_PARSE_FLAG_NO_TYPE)) {
+		self->type = fix_msg_type_parse(self->msg_type, 0x01);
 
-	// if third field is not MsgType -> garbled
-
-	if (fix_message_type_is(self, FIX_MSG_TYPE_UNKNOWN))
-		ret = FIX_MSG_STATE_GARBLED;
+		/* If third field is not MsgType -> garbled */
+		if (fix_message_type_is(self, FIX_MSG_TYPE_UNKNOWN))
+			ret = FIX_MSG_STATE_GARBLED;
+	} else
+		self->type = FIX_MSG_TYPE_UNKNOWN;
 
 exit:
 	return ret;
@@ -385,7 +419,7 @@ static int parse_begin_string(struct fix_message *self)
 	return match_field(self->head_buf, BeginString, &self->begin_string);
 }
 
-static int first_three_fields(struct fix_message *self)
+static int first_three_fields(struct fix_message *self, unsigned long flags)
 {
 	int ret;
 
@@ -397,15 +431,14 @@ static int first_three_fields(struct fix_message *self)
 	if (ret)
 		goto exit;
 
-	return parse_msg_type(self);
+	return parse_msg_type(self, flags);
 
 exit:
 	return ret;
 }
 
-int fix_message_parse(struct fix_message *self, struct fix_dialect *dialect, struct buffer *buffer)
+int fix_message_parse(struct fix_message *self, struct fix_dialect *dialect, struct buffer *buffer, unsigned long flags)
 {
-	unsigned long size;
 	const char *start;
 	int ret;
 
@@ -416,20 +449,22 @@ retry:
 	ret = FIX_MSG_STATE_PARTIAL;
 
 	start	= buffer_start(buffer);
-	size	= buffer_size(buffer);
 
-	if (!size)
+	if (!buffer_size(buffer))
 		goto fail;
 
-	ret = first_three_fields(self);
+	ret = first_three_fields(self, flags);
 	if (ret)
 		goto fail;
 
-	ret = checksum(self, buffer);
+	ret = checksum(self, buffer, flags);
 	if (ret)
 		goto fail;
 
 	rest_of_message(self, dialect, buffer);
+
+	self->iov[0].iov_base	= (void *)start;
+	self->iov[0].iov_len 	= buffer_start(buffer) - start;
 
 	TRACE(LIBTRADING_FIX_MESSAGE_PARSE_RET());
 
@@ -496,6 +531,23 @@ const char *fix_get_string(struct fix_field *field, char *buffer, unsigned long 
 	return buffer;
 }
 
+double fix_get_float(struct fix_message *self, int tag, double _default_) {
+	struct fix_field *field = fix_get_field(self, tag);
+	return field ? field->float_value : _default_;
+}
+
+int64_t fix_get_int(struct fix_message *self, int tag, int64_t _default_)
+{
+	struct fix_field *field = fix_get_field(self, tag);
+	return field ? field->int_value : _default_;
+}
+
+char fix_get_char(struct fix_message *self, int tag, char _default_)
+{
+	struct fix_field *field = fix_get_field(self, tag);
+	return field ? field->char_value : _default_;
+}
+
 struct fix_message *fix_message_new(void)
 {
 	struct fix_message *self = calloc(1, sizeof *self);
@@ -549,12 +601,19 @@ bool fix_field_unparse(struct fix_field *self, struct buffer *buffer)
 		}
 		break;
 	}
+	case FIX_TYPE_STRING_8: {
+		for (int i = 0; i < sizeof(self->string_8_value) && self->string_8_value[i]; ++i) {
+			buffer_put(buffer, self->string_8_value[i]);
+		}
+		break;
+	}
 	case FIX_TYPE_CHAR: {
 		buffer_put(buffer, self->char_value);
 		break;
 	}
 	case FIX_TYPE_FLOAT: {
-		buffer->end += sprintf(buffer_end(buffer), "%f", self->float_value);
+		// dtoa2 do not print leading zeros or .0, 7 digits needed sometimes
+		buffer->end += modp_dtoa2(self->float_value, buffer_end(buffer), 7);
 		break;
 	}
 	case FIX_TYPE_INT: {
@@ -593,7 +652,9 @@ void fix_message_unparse(struct fix_message *self)
 	strncpy(buf, self->str_now, sizeof(buf));
 
 	/* standard header */
-	msg_type	= FIX_STRING_FIELD(MsgType, fix_msg_types[self->type]);
+	msg_type	= (self->type != FIX_MSG_TYPE_UNKNOWN) ?
+			FIX_STRING_FIELD(MsgType, fix_msg_types[self->type]) :
+			FIX_STRING_FIELD(MsgType, self->msg_type);
 	sender_comp_id	= FIX_STRING_FIELD(SenderCompID, self->sender_comp_id);
 	target_comp_id	= FIX_STRING_FIELD(TargetCompID, self->target_comp_id);
 	msg_seq_num	= FIX_INT_FIELD   (MsgSeqNum, self->msg_seq_num);
@@ -626,27 +687,31 @@ void fix_message_unparse(struct fix_message *self)
 
 int fix_message_send(struct fix_message *self, int sockfd, int flags)
 {
-	struct iovec iov[2];
+	size_t msg_size;
 	int ret = 0;
 
 	TRACE(LIBTRADING_FIX_MESSAGE_SEND(self, sockfd, flags));
 
-	fix_message_unparse(self);
+	if (!(flags & FIX_SEND_FLAG_PRESERVE_BUFFER))
+		fix_message_unparse(self);
 
-	buffer_to_iovec(self->head_buf, &iov[0]);
-	buffer_to_iovec(self->body_buf, &iov[1]);
+	buffer_to_iovec(self->head_buf, &self->iov[0]);
+	buffer_to_iovec(self->body_buf, &self->iov[1]);
 
-	if (io_sendmsg(sockfd, iov, 2, 0) < 0) {
-		ret = -1;
-		goto error_out;
+	ret = io_sendmsg(sockfd, self->iov, 2, 0);
+
+	msg_size = fix_message_size(self);
+
+	if (!(flags & FIX_SEND_FLAG_PRESERVE_BUFFER)) {
+		self->head_buf = self->body_buf = NULL;
 	}
-
-error_out:
-	self->head_buf = self->body_buf = NULL;
 
 	TRACE(LIBTRADING_FIX_MESSAGE_SEND_RET());
 
-	return ret;
+	if (ret >= 0)
+		return msg_size - ret;
+	else
+		return ret;
 }
 
 struct fix_dialect fix_dialects[] = {

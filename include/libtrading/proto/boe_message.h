@@ -1,6 +1,10 @@
 #ifndef LIBTRADING_BOE_MESSAGE_H
 #define LIBTRADING_BOE_MESSAGE_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "libtrading/types.h"
 
 #include <stddef.h>
@@ -56,7 +60,7 @@ struct boe_header {
 	u8				MessageType;
 	u8				MatchingUnit;
 	le32				SequenceNumber;
-} packed;
+} __attribute__((packed));
 
 struct boe_message {
 	struct boe_header		header;
@@ -123,7 +127,7 @@ struct boe_message {
 struct boe_unit {
 	u8				UnitNumber;
 	le32				UnitSequence;
-} packed;
+} __attribute__((packed));
 
 struct boe_login_request {
 	char				SessionSubID[4];
@@ -143,7 +147,7 @@ struct boe_login_request {
 	le64				ReservedBitfields2;
 	u8				NumberOfUnits;
 	struct boe_unit			Units[];
-} packed;
+} __attribute__((packed));
 
 /*
  * BATS to participant messages:
@@ -167,7 +171,7 @@ struct boe_login_response {
 	le32				LastReceivedSequenceNumber;
 	u8				NumberOfUnits;
 	struct boe_unit			Units[];
-} packed;
+} __attribute__((packed));
 
 struct boe_logout {
 	u8				LogoutReason;
@@ -175,7 +179,7 @@ struct boe_logout {
 	le32				LastReceivedSequenceNumber;
 	u8				NumberOfUnits;
 	struct boe_unit			Units[];
-} packed;
+} __attribute__((packed));
 
 int boe_message_decode(struct buffer *buf, struct boe_message *msg, size_t size);
 
@@ -183,5 +187,9 @@ static inline void *boe_message_payload(struct boe_message *msg)
 {
 	return (void *) msg + sizeof(struct boe_header);
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -54,7 +54,6 @@ EXTRA_WARNINGS += -Wmissing-prototypes
 EXTRA_WARNINGS += -Wnested-externs
 EXTRA_WARNINGS += -Wold-style-definition
 EXTRA_WARNINGS += -Wstrict-prototypes
-EXTRA_WARNINGS += -Wdeclaration-after-statement
 
 # Compile flags
 CFLAGS		:= -I$(CURDIR)/include -Wall $(EXTRA_WARNINGS) $(CFLAGS_WERROR) -g -O3 -std=gnu99 -fPIC
@@ -89,9 +88,11 @@ PROGRAMS += tools/tape/tape
 DEFINES =
 INCLUDES += $(shell sh -c 'xml2-config --cflags')
 INCLUDES += $(shell sh -c 'pkg-config --cflags glib-2.0')
+INCLUDES += -Ilib/stringencoders
+INCLUDES += -Itools/include
 
 EXTRA_LIBS += $(shell sh -c 'xml2-config --libs')
-EXTRA_LIBS += $(shell sh -c 'pkg-config --libs glib-2.0')$
+EXTRA_LIBS += $(shell sh -c 'pkg-config --libs glib-2.0')
 
 EXTRA_LIBS += -lz
 
@@ -108,20 +109,27 @@ endif
 ifeq ($(uname_S),Darwin)
 	CONFIG_OPTS += -DCONFIG_NEED_CLOCK_GETTIME=1
 	COMPAT_OBJS += lib/compat/clock_gettime.o
+	export LIBRARY_PATH = /usr/local/lib
+	INCLUDES += -I/usr/local/include
+	PREFIX = /usr/local
 endif
 
 market_EXTRA_DEPS += lib/die.o
 market_EXTRA_DEPS += tools/sim/engine.o
+market_EXTRA_DEPS += tools/fix/fix_common.o
 market_EXTRA_LIBS += -lm
 
 trader_EXTRA_DEPS += lib/die.o
+trader_EXTRA_DEPS += tools/fix/fix_common.o
 
 fix_client_EXTRA_DEPS += lib/die.o
 fix_client_EXTRA_DEPS += tools/fix/test.o
+fix_client_EXTRA_DEPS += tools/fix/fix_common.o
 fix_client_EXTRA_LIBS += -lm
 
 fix_server_EXTRA_DEPS += lib/die.o
 fix_server_EXTRA_DEPS += tools/fix/test.o
+fix_server_EXTRA_DEPS += tools/fix/fix_common.o
 
 fast_client_EXTRA_DEPS += lib/die.o
 fast_client_EXTRA_DEPS += tools/fast/test.o
@@ -134,6 +142,7 @@ fast_parser_EXTRA_DEPS += lib/die.o
 fast_parser_EXTRA_DEPS += tools/fast/test.o
 
 forts_EXTRA_DEPS += lib/die.o
+forts_EXTRA_DEPS += tools/fix/fix_common.o
 
 tape_EXTRA_DEPS += tools/tape/builtin-check.o
 
@@ -170,6 +179,10 @@ LIB_H += proto/fast_feed.h
 LIB_H += proto/fast_message.h
 LIB_H += proto/fast_session.h
 LIB_H += proto/fix_message.h
+LIB_H += proto/fix_template.h
+LIB_H += proto/fix_session.h
+LIB_H += proto/cme_globex_fix.h
+LIB_H += proto/ice_os_fix.h
 LIB_H += proto/micex_fix.h
 LIB_H += proto/iex_fix.h
 LIB_H += proto/kcg_hotspot_fix.h
@@ -196,11 +209,14 @@ LIB_OBJS	+= lib/proto/bats_pitch_message.o
 LIB_OBJS	+= lib/proto/boe_message.o
 LIB_OBJS	+= lib/proto/fix_message.o
 LIB_OBJS	+= lib/proto/fix_session.o
+LIB_OBJS	+= lib/proto/fix_template.o
 LIB_OBJS	+= lib/proto/fast_book.o
 LIB_OBJS	+= lib/proto/fast_feed.o
 LIB_OBJS	+= lib/proto/fast_message.o
 LIB_OBJS	+= lib/proto/fast_session.o
 LIB_OBJS	+= lib/proto/fast_template.o
+LIB_OBJS	+= lib/proto/cme_globex_fix.o
+LIB_OBJS	+= lib/proto/ice_os_fix.o
 LIB_OBJS	+= lib/proto/micex_fix.o
 LIB_OBJS	+= lib/proto/iex_fix.o
 LIB_OBJS	+= lib/proto/kcg_hotspot_fix.o
@@ -214,11 +230,14 @@ LIB_OBJS	+= lib/proto/ouch42_message.o
 LIB_OBJS	+= lib/proto/soupbin3_session.o
 LIB_OBJS	+= lib/proto/xdp_message.o
 LIB_OBJS	+= lib/proto/lse_itch_message.o
+LIB_OBJS	+= lib/stringencoders/modp_numtoa.o
 
 LIB_GEN_SRC	+= lib/proto/micex_fix.c
 LIB_GEN_SRC	+= lib/proto/iex_fix.c
 LIB_GEN_SRC	+= lib/proto/kcg_hotspot_fix.c
 LIB_GEN_SRC	+= lib/proto/mbt_fix.c
+LIB_GEN_SRC	+= lib/proto/cme_globex_fix.c
+LIB_GEN_SRC	+= lib/proto/ice_os_fix.c
 
 LIB_OBJS	+= $(COMPAT_OBJS)
 

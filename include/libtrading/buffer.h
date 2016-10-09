@@ -1,6 +1,10 @@
 #ifndef LIBTRADING_BUFFER_H
 #define LIBTRADING_BUFFER_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <libtrading/types.h>
 
 #include <sys/socket.h>
@@ -22,9 +26,10 @@ struct buffer {
 struct buffer *buffer_new(unsigned long capacity);
 void buffer_delete(struct buffer *self);
 bool buffer_printf(struct buffer *self, const char *format, ...);
-u8 buffer_sum_range(struct buffer *buf, const char *start, const char *end);
+u8 buffer_sum_range(const char *start, const char *end);
 u8 buffer_sum(struct buffer *self);
 
+void buffer_append(struct buffer *dst, struct buffer *src);
 ssize_t buffer_recv(struct buffer *self, int sockfd, size_t size, int flags);
 ssize_t buffer_xread(struct buffer *self, int fd);
 ssize_t buffer_nxread(struct buffer *buf, int fd, size_t size);
@@ -52,34 +57,45 @@ static inline char buffer_get_char(struct buffer *self)
 {
 	return buffer_get_8(self);
 }
+
 static inline u16 buffer_get_le16(struct buffer *self)
 {
-	return buffer_get_8(self) | buffer_get_8(self) << 8;
+	u16 x = 0;
+	x |= (u16)buffer_get_8(self);
+	x |= (u16)buffer_get_8(self) << 8;
+	return x;
 }
 
 static inline u32 buffer_get_le32(struct buffer *self)
 {
-	return buffer_get_8(self)
-		| buffer_get_8(self) << 8
-		| buffer_get_8(self) << 16
-		| buffer_get_8(self) << 24;
+	u32 x = 0;
+	x |= (u32)buffer_get_8(self);
+	x |= (u32)buffer_get_8(self) << 8;
+	x |= (u32)buffer_get_8(self) << 16;
+	x |= (u32)buffer_get_8(self) << 24;
+	return x;
 }
 
 static inline uint64_t buffer_get_le64(struct buffer *self)
 {
-	return (uint64_t) buffer_get_8(self)
-		| (uint64_t) buffer_get_8(self) << 8
-		| (uint64_t) buffer_get_8(self) << 16
-		| (uint64_t) buffer_get_8(self) << 24
-		| (uint64_t) buffer_get_8(self) << 32
-		| (uint64_t) buffer_get_8(self) << 40
-		| (uint64_t) buffer_get_8(self) << 48
-		| (uint64_t) buffer_get_8(self) << 56;
+	uint64_t x = 0;
+	x |= (uint64_t)buffer_get_8(self);
+	x |= (uint64_t)buffer_get_8(self) << 8;
+	x |= (uint64_t)buffer_get_8(self) << 16;
+	x |= (uint64_t)buffer_get_8(self) << 24;
+	x |= (uint64_t)buffer_get_8(self) << 32;
+	x |= (uint64_t)buffer_get_8(self) << 40;
+	x |= (uint64_t)buffer_get_8(self) << 48;
+	x |= (uint64_t)buffer_get_8(self) << 56;
+	return x;
 }
 
 static inline u16 buffer_get_be16(struct buffer *self)
 {
-	return buffer_get_8(self) << 8 | buffer_get_8(self);
+	u16 x = 0;
+	x |= (u16)buffer_get_8(self) << 8;
+	x |= (u16)buffer_get_8(self);
+	return x;
 }
 
 static inline void buffer_get_n(struct buffer *self, int n, char *dst)
@@ -109,6 +125,11 @@ static inline char *buffer_end(const struct buffer *self)
 static inline void buffer_advance(struct buffer *self, long n)
 {
 	self->start += n;
+}
+
+static inline void buffer_advance_end(struct buffer *self, long n)
+{
+	self->end += n;
 }
 
 static inline unsigned long buffer_size(const struct buffer *self)
@@ -149,5 +170,9 @@ struct buffer *buffer_mmap(int fd, size_t len);
 void buffer_munmap(struct buffer *buf);
 
 ssize_t buffer_inflate(struct buffer *comp_buf, struct buffer *uncomp_buf, z_stream *stream);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
